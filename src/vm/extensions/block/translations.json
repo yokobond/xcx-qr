@@ -1,14 +1,41 @@
 {
   "en": {
     "xcxQR.name": "QR Code",
-    "xcxQR.doIt": "do it [SCRIPT]"
+    "xcxQR.generateQRCode": "[TEXT] to QR code",
+    "xcxQR.startQRScan": "start scan QR code",
+    "xcxQR.stopQRScan": "stop scan QR code",
+    "xcxQR.reportQRData": "QR code data",
+    "xcxQR.reportQRCornerPoint": "QR code [CORNER] [POINT]",
+    "xcxQR.whenQRIsRead": "when QR code is read",
+    "xcxQR.topLeft": "top left",
+    "xcxQR.topRight": "top right",
+    "xcxQR.bottomLeft": "bottom left",
+    "xcxQR.bottomRight": "bottom right"
   },
   "ja": {
-    "xcxQR.name": "QR Code",
-    "xcxQR.doIt": "[SCRIPT] を実行する"
+    "xcxQR.name": "QRコード",
+    "xcxQR.generateQRCode": "[TEXT]をQRコードにする",
+    "xcxQR.startQRScan": "QRコードの読み取りを始める",
+    "xcxQR.stopQRScan": "QRコードの読み取りを止める",
+    "xcxQR.reportQRData": "QRコードのデータ",
+    "xcxQR.reportQRCornerPoint": "QRコードの[CORNER]の[POINT]座標",
+    "xcxQR.whenQRIsRead": "QRコードが読み取られたとき",
+    "xcxQR.topLeft": "左上",
+    "xcxQR.topRight": "右上",
+    "xcxQR.bottomLeft": "左下",
+    "xcxQR.bottomRight": "右下"
   },
   "ja-Hira": {
-    "xcxQR.name": "QR Code",
-    "xcxQR.doIt": "[SCRIPT] をじっこうする"
+    "xcxQR.name": "QRコード",
+    "xcxQR.generateQRCode": "[TEXT]をQRコードにする",
+    "xcxQR.startQRScan": "QRコードのよみとりをはじめる",
+    "xcxQR.stopQRScan": "QRコードのよみとりをとめる",
+    "xcxQR.reportQRData": "QRコードのデータ",
+    "xcxQR.reportQRCornerPoint": "QRコードの[CORNER]の[POINT]ざひょう",
+    "xcxQR.whenQRIsRead": "QRコードがよみとられたとき",
+    "xcxQR.topLeft": "ひだりうえ",
+    "xcxQR.topRight": "みぎうえ",
+    "xcxQR.bottomLeft": "ひだりした",
+    "xcxQR.bottomRight": "みぎした"
   }
 }

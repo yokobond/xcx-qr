@@ -1,14 +1,14 @@
 {
   "en": {
-    "xcxQR.entry.name": "QR Code",
-    "xcxQR.entry.description": "Description of this extension"
+    "xcxQR.entry.name": "QR Code Extension Blocks",
+    "xcxQR.entry.description": "Generate and read QR code"
   },
   "ja": {
-    "xcxQR.entry.name": "QR Code",
-    "xcxQR.entry.description": "拡張機能の説明"
+    "xcxQR.entry.name": "QRコード拡張ブロック",
+    "xcxQR.entry.description": "QRコードを作ったり読んだりする"
   },
   "ja-Hira": {
-    "xcxQR.entry.name": "QR Code",
-    "xcxQR.entry.description": "かくちょうきのうのせつめい"
+    "xcxQR.entry.name": "QRコードかくちょうブロック",
+    "xcxQR.entry.description": "QRコードをつくったりよんだりする"
   }
 }

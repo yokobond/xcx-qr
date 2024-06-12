@@ -1,9 +1,27 @@
 import BlockType from '../../extension-support/block-type';
 import ArgumentType from '../../extension-support/argument-type';
 import Cast from '../../util/cast';
-import log from '../../util/log';
 import translations from './translations.json';
 import blockIcon from './block-icon.png';
+
+let
+    QRCode;
+(async () => {
+    QRCode = (await import(
+        /* webpackIgnore: true */
+        'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm'
+    ));
+})();
+
+let QrScanner;
+let qrEngine;
+(async () => {
+    QrScanner = (await import(
+        /* webpackIgnore: true */
+        'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm'
+    )).default;
+    qrEngine = await QrScanner.createQrEngine(QrScanner.WORKER_PATH);
+})();
 
 /**
  * Formatter which is used for translation.
@@ -98,6 +116,12 @@ class ExtensionBlocks {
             // Replace 'formatMessage' to a formatter which is used in the runtime.
             formatMessage = runtime.formatMessage;
         }
+
+        this.scanTimer = null;
+        this.scanInterval = 100;
+
+        this.scannedData = '';
+        this.scannedCornerPoints = [{x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}];
     }
 
     /**
@@ -113,33 +137,238 @@ class ExtensionBlocks {
             showStatusButton: false,
             blocks: [
                 {
-                    opcode: 'do-it',
+                    opcode: 'generateQRCode',
                     blockType: BlockType.REPORTER,
-                    blockAllThreads: false,
                     text: formatMessage({
-                        id: 'xcxQR.doIt',
-                        default: 'do it [SCRIPT]',
-                        description: 'execute javascript for example'
+                        id: 'xcxQR.generateQRCode',
+                        default: '[TEXT] to QR code'
                     }),
-                    func: 'doIt',
+                    disableMonitor: true,
+                    func: 'generateQRCode',
                     arguments: {
-                        SCRIPT: {
+                        TEXT: {
                             type: ArgumentType.STRING,
-                            defaultValue: '3 + 4'
+                            defaultValue: formatMessage({
+                                id: 'xcxQR.generateQRCode.defaultText',
+                                default: 'QR'
+                            })
                         }
                     }
+                },
+                '---',
+                {
+                    opcode: 'startQRScan',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'xcxQR.startQRScan',
+                        default: 'start scan QR code'
+                    }),
+                    func: 'startQRScan',
+                    arguments: {
+                    }
+                },
+                {
+                    opcode: 'stopQRScan',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'xcxQR.stopQRScan',
+                        default: 'stop scan QR code'
+                    }),
+                    func: 'stopQRScan',
+                    arguments: {
+                    }
+                },
+                {
+                    opcode: 'reportQRData',
+                    blockType: BlockType.REPORTER,
+                    disableMonitor: false,
+                    text: formatMessage({
+                        id: 'xcxQR.reportQRData',
+                        default: 'QR code data'
+                    }),
+                    func: 'reportQRData',
+                    arguments: {
+                    }
+                },
+                {
+                    opcode: 'reportQRCornerPoint',
+                    blockType: BlockType.REPORTER,
+                    disableMonitor: true,
+                    text: formatMessage({
+                        id: 'xcxQR.reportQRCornerPoint',
+                        default: 'QR code [CORNER] [POINT]'
+                    }),
+                    func: 'reportQRCornerPoint',
+                    arguments: {
+                        CORNER: {
+                            type: ArgumentType.STRING,
+                            menu: 'qrCornerMenu',
+                            defaultValue: 'topLeft'
+                        },
+                        POINT: {
+                            type: ArgumentType.STRING,
+                            menu: 'qrPointMenu',
+                            defaultValue: 'x'
+                        }
+                    }
+                },
+                {
+                    opcode: 'whenQRIsRead',
+                    blockType: BlockType.EVENT,
+                    text: formatMessage({
+                        id: 'xcxQR.whenQRIsRead',
+                        default: 'when QR code is read'
+                    }),
+                    isEdgeActivated: false,
+                    shouldRestartExistingThreads: true
                 }
             ],
             menus: {
+                qrCornerMenu: {
+                    acceptReporters: false,
+                    items: 'getCornerMenu'
+                },
+                qrPointMenu: {
+                    acceptReporters: false,
+                    items: 'getPointMenu'
+                }
             }
         };
     }
 
-    doIt (args) {
-        const statement = Cast.toString(args.SCRIPT);
-        const func = new Function(`return (${statement})`);
-        log.log(`doIt: ${statement}`);
-        return func.call(this);
+    getCornerMenu () {
+        return [
+            {
+                text: formatMessage({
+                    id: 'xcxQR.topLeft',
+                    default: 'top left'
+                }),
+                value: 'topLeft'
+            },
+            {
+                text: formatMessage({
+                    id: 'xcxQR.topRight',
+                    default: 'top right'
+                }),
+                value: 'topRight'
+            },
+            {
+                text: formatMessage({
+                    id: 'xcxQR.bottomRight',
+                    default: 'bottom right'
+                }),
+                value: 'bottomRight'
+            },
+            {
+                text: formatMessage({
+                    id: 'xcxQR.bottomLeft',
+                    default: 'bottom left'
+                }),
+                value: 'bottomLeft'
+            }
+        ];
+    }
+
+    getPointMenu () {
+        return ['x', 'y'];
+    }
+
+    generateQRCode (args) {
+        const text = Cast.toString(args.TEXT);
+        return QRCode.toDataURL(text);
+    }
+
+    /**
+     * Return snapshot image dataURL.
+     * @returns {Promise<string>} - resolves snapshot dataURL
+     */
+    snapshotData () {
+        return new Promise(resolve => {
+            this.runtime.renderer.requestSnapshot(imageDataURL => {
+                resolve(imageDataURL);
+            });
+        });
+    }
+
+
+    /**
+     * Read QR code from an image.
+     * @returns {Promise<object>} - resolves scan result or null for no QR code
+     */
+    async scanQR () {
+        const runtime = this.runtime;
+        let canvasWidth = 960;
+        let canvasHeight = 720;
+        const dataURL = await (new Promise(resolve => {
+            runtime.renderer.requestSnapshot(imageDataURL => {
+                canvasWidth = runtime.renderer.canvas.width;
+                canvasHeight = runtime.renderer.canvas.height;
+                resolve(imageDataURL);
+            });
+        }));
+        try {
+            const scanResult = await QrScanner.scanImage(
+                dataURL,
+                {
+                    qrEngine: qrEngine,
+                    returnDetailedScanResult: true
+                });
+            if (!scanResult || !scanResult.data) {
+                return null;
+            }
+            this.scannedData = scanResult.data;
+            this.scannedCornerPoints = scanResult.cornerPoints.map(point => ({
+                x: (point.x * (480 / canvasWidth)) - 240,
+                y: 180 - (point.y * (360 / canvasHeight))
+            }));
+            if (scanResult) {
+                runtime.startHats('xcxQR_whenQRIsRead');
+            }
+            return scanResult;
+        } catch (e) {
+            return null;
+        }
+    }
+
+
+    /**
+     * Start QR scan.
+     */
+    startQRScan () {
+        if (this.scanTimer) {
+            return; // already started
+        }
+        this.scanTimer = setTimeout(() => {
+            this.scanQR()
+                .catch(() => {
+                    // ignore no QR code
+                })
+                .finally(() => {
+                    this.scanTimer = null;
+                    this.startQRScan();
+                });
+        }, this.scanInterval);
+    }
+
+    stopQRScan () {
+        if (this.scanTimer) {
+            clearTimeout(this.scanTimer);
+            this.scanTimer = null;
+        }
+    }
+
+    reportQRData () {
+        return this.scannedData;
+    }
+
+    reportQRCornerPoint (args) {
+        const corner = args.CORNER;
+        const point = args.POINT;
+        const index = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'].indexOf(corner);
+        if (index < 0) {
+            return 0;
+        }
+        return this.scannedCornerPoints[index][point];
     }
 }
 
