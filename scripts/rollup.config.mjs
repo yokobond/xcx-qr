@@ -78,8 +78,7 @@ const rollupOptions = {
     },
     external: [
         'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm',
-        'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js',
-        // 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm',
+        'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm',
     ],
 }
 
