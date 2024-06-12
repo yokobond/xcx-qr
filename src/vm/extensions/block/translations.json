@@ -1,0 +1,14 @@
+{
+  "en": {
+    "xcxQR.name": "QR Code",
+    "xcxQR.doIt": "do it [SCRIPT]"
+  },
+  "ja": {
+    "xcxQR.name": "QR Code",
+    "xcxQR.doIt": "[SCRIPT] を実行する"
+  },
+  "ja-Hira": {
+    "xcxQR.name": "QR Code",
+    "xcxQR.doIt": "[SCRIPT] をじっこうする"
+  }
+}
