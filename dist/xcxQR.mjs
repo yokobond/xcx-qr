@@ -1110,7 +1110,7 @@ var Cast$1 = /*@__PURE__*/getDefaultExportFromCjs(cast);
 
 var en = {
 	"xcxQR.name": "QR Code",
-	"xcxQR.generateQRCode": "[TEXT] to QR code",
+	"xcxQR.generateQRCode": "[TEXT] to QR code with color [COLOR]",
 	"xcxQR.startQRScan": "start scan QR code",
 	"xcxQR.stopQRScan": "stop scan QR code",
 	"xcxQR.reportQRData": "QR code data",
@@ -1123,7 +1123,7 @@ var en = {
 };
 var ja = {
 	"xcxQR.name": "QRコード",
-	"xcxQR.generateQRCode": "[TEXT]をQRコードにする",
+	"xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードにする",
 	"xcxQR.startQRScan": "QRコードの読み取りを始める",
 	"xcxQR.stopQRScan": "QRコードの読み取りを止める",
 	"xcxQR.reportQRData": "QRコードのデータ",
@@ -1139,7 +1139,7 @@ var translations = {
 	ja: ja,
 	"ja-Hira": {
 	"xcxQR.name": "QRコード",
-	"xcxQR.generateQRCode": "[TEXT]をQRコードにする",
+	"xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードにする",
 	"xcxQR.startQRScan": "QRコードのよみとりをはじめる",
 	"xcxQR.stopQRScan": "QRコードのよみとりをとめる",
 	"xcxQR.reportQRData": "QRコードのデータ",
@@ -1275,7 +1275,7 @@ var ExtensionBlocks = /*#__PURE__*/function () {
           blockType: BlockType$1.REPORTER,
           text: formatMessage({
             id: 'xcxQR.generateQRCode',
-            default: '[TEXT] to QR code'
+            default: '[TEXT] to QR code with color [COLOR]'
           }),
           disableMonitor: true,
           func: 'generateQRCode',
@@ -1286,6 +1286,10 @@ var ExtensionBlocks = /*#__PURE__*/function () {
                 id: 'xcxQR.generateQRCode.defaultText',
                 default: 'QR'
               })
+            },
+            COLOR: {
+              type: ArgumentType$1.COLOR,
+              defaultValue: '#000000'
             }
           }
         }, '---', {
@@ -1397,7 +1401,13 @@ var ExtensionBlocks = /*#__PURE__*/function () {
     key: "generateQRCode",
     value: function generateQRCode(args) {
       var text = Cast$1.toString(args.TEXT);
-      return QRCode.toDataURL(text);
+      var dark = args.COLOR;
+      return QRCode.toDataURL(text, {
+        color: {
+          dark: dark,
+          light: '#FFFFFF00'
+        }
+      });
     }
 
     /**

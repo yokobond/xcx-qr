@@ -141,7 +141,7 @@ class ExtensionBlocks {
                     blockType: BlockType.REPORTER,
                     text: formatMessage({
                         id: 'xcxQR.generateQRCode',
-                        default: '[TEXT] to QR code'
+                        default: '[TEXT] to QR code with color [COLOR]'
                     }),
                     disableMonitor: true,
                     func: 'generateQRCode',
@@ -152,6 +152,10 @@ class ExtensionBlocks {
                                 id: 'xcxQR.generateQRCode.defaultText',
                                 default: 'QR'
                             })
+                        },
+                        COLOR: {
+                            type: ArgumentType.COLOR,
+                            defaultValue: '#000000'
                         }
                     }
                 },
@@ -275,7 +279,12 @@ class ExtensionBlocks {
 
     generateQRCode (args) {
         const text = Cast.toString(args.TEXT);
-        return QRCode.toDataURL(text);
+        const dark = args.COLOR;
+        return QRCode.toDataURL(
+            text,
+            {
+                color: {dark: dark, light: '#FFFFFF00'}
+            });
     }
 
     /**

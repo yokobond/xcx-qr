@@ -1,7 +1,7 @@
 {
   "en": {
     "xcxQR.name": "QR Code",
-    "xcxQR.generateQRCode": "[TEXT] to QR code",
+    "xcxQR.generateQRCode": "[TEXT] to QR code with color [COLOR]",
     "xcxQR.startQRScan": "start scan QR code",
     "xcxQR.stopQRScan": "stop scan QR code",
     "xcxQR.reportQRData": "QR code data",
@@ -14,7 +14,7 @@
   },
   "ja": {
     "xcxQR.name": "QRコード",
-    "xcxQR.generateQRCode": "[TEXT]をQRコードにする",
+    "xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードにする",
     "xcxQR.startQRScan": "QRコードの読み取りを始める",
     "xcxQR.stopQRScan": "QRコードの読み取りを止める",
     "xcxQR.reportQRData": "QRコードのデータ",
@@ -27,7 +27,7 @@
   },
   "ja-Hira": {
     "xcxQR.name": "QRコード",
-    "xcxQR.generateQRCode": "[TEXT]をQRコードにする",
+    "xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードにする",
     "xcxQR.startQRScan": "QRコードのよみとりをはじめる",
     "xcxQR.stopQRScan": "QRコードのよみとりをとめる",
     "xcxQR.reportQRData": "QRコードのデータ",
