@@ -1,7 +1,9 @@
 {
   "en": {
     "xcxQR.name": "QR Code",
-    "xcxQR.generateQRCode": "[TEXT] to QR code with color [COLOR]",
+    "xcxQR.generateQRCode": "[TEXT] to QR code with color [COLOR] as [NAME]",
+    "xcxQR.generateQRCode.defaultText": "data",
+    "xcxQR.generateQRCode.defaultName": "costume",
     "xcxQR.startQRScan": "start scan QR code",
     "xcxQR.stopQRScan": "stop scan QR code",
     "xcxQR.reportQRData": "QR code data",
@@ -14,7 +16,9 @@
   },
   "ja": {
     "xcxQR.name": "QRコード",
-    "xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードにする",
+    "xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードを[NAME]にする",
+    "xcxQR.generateQRCode.defaultText": "データ",
+    "xcxQR.generateQRCode.defaultName": "コスチューム",
     "xcxQR.startQRScan": "QRコードの読み取りを始める",
     "xcxQR.stopQRScan": "QRコードの読み取りを止める",
     "xcxQR.reportQRData": "QRコードのデータ",
@@ -27,7 +31,9 @@
   },
   "ja-Hira": {
     "xcxQR.name": "QRコード",
-    "xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードにする",
+    "xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードを[NAME]にする",
+    "xcxQR.generateQRCode.defaultText": "データ",
+    "xcxQR.generateQRCode.defaultName": "コスチューム",
     "xcxQR.startQRScan": "QRコードのよみとりをはじめる",
     "xcxQR.stopQRScan": "QRコードのよみとりをとめる",
     "xcxQR.reportQRData": "QRコードのデータ",

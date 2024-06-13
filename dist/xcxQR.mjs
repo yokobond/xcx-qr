@@ -857,9 +857,9 @@ var Color$1 = /*#__PURE__*/function () {
     }
   }]);
 }();
-var color = Color$1;
+var color$3 = Color$1;
 
-var Color = color;
+var Color = color$3;
 
 /**
  * @fileoverview
@@ -1108,9 +1108,535 @@ var Cast = /*#__PURE__*/function () {
 var cast = Cast;
 var Cast$1 = /*@__PURE__*/getDefaultExportFromCjs(cast);
 
+var web = {exports: {}};
+
+var minilog$2 = {exports: {}};
+
+function M() {
+  this._events = {};
+}
+M.prototype = {
+  on: function on(ev, cb) {
+    this._events || (this._events = {});
+    var e = this._events;
+    (e[ev] || (e[ev] = [])).push(cb);
+    return this;
+  },
+  removeListener: function removeListener(ev, cb) {
+    var e = this._events[ev] || [],
+      i;
+    for (i = e.length - 1; i >= 0 && e[i]; i--) {
+      if (e[i] === cb || e[i].cb === cb) {
+        e.splice(i, 1);
+      }
+    }
+  },
+  removeAllListeners: function removeAllListeners(ev) {
+    if (!ev) {
+      this._events = {};
+    } else {
+      this._events[ev] && (this._events[ev] = []);
+    }
+  },
+  listeners: function listeners(ev) {
+    return this._events ? this._events[ev] || [] : [];
+  },
+  emit: function emit(ev) {
+    this._events || (this._events = {});
+    var args = Array.prototype.slice.call(arguments, 1),
+      i,
+      e = this._events[ev] || [];
+    for (i = e.length - 1; i >= 0 && e[i]; i--) {
+      e[i].apply(this, args);
+    }
+    return this;
+  },
+  when: function when(ev, cb) {
+    return this.once(ev, cb, true);
+  },
+  once: function once(ev, cb, when) {
+    if (!cb) return this;
+    function c() {
+      if (!when) this.removeListener(ev, c);
+      if (cb.apply(this, arguments) && when) this.removeListener(ev, c);
+    }
+    c.cb = cb;
+    this.on(ev, c);
+    return this;
+  }
+};
+M.mixin = function (dest) {
+  var o = M.prototype,
+    k;
+  for (k in o) {
+    o.hasOwnProperty(k) && (dest.prototype[k] = o[k]);
+  }
+};
+var microee$1 = M;
+
+var microee = microee$1;
+
+// Implements a subset of Node's stream.Transform - in a cross-platform manner.
+function Transform$4() {}
+microee.mixin(Transform$4);
+
+// The write() signature is different from Node's
+// --> makes it much easier to work with objects in logs.
+// One of the lessons from v1 was that it's better to target
+// a good browser rather than the lowest common denominator
+// internally.
+// If you want to use external streams, pipe() to ./stringify.js first.
+Transform$4.prototype.write = function (name, level, args) {
+  this.emit('item', name, level, args);
+};
+Transform$4.prototype.end = function () {
+  this.emit('end');
+  this.removeAllListeners();
+};
+Transform$4.prototype.pipe = function (dest) {
+  var s = this;
+  // prevent double piping
+  s.emit('unpipe', dest);
+  // tell the dest that it's being piped to
+  dest.emit('pipe', s);
+  function onItem() {
+    dest.write.apply(dest, Array.prototype.slice.call(arguments));
+  }
+  function onEnd() {
+    !dest._isStdio && dest.end();
+  }
+  s.on('item', onItem);
+  s.on('end', onEnd);
+  s.when('unpipe', function (from) {
+    var match = from === dest || typeof from == 'undefined';
+    if (match) {
+      s.removeListener('item', onItem);
+      s.removeListener('end', onEnd);
+      dest.emit('unpipe');
+    }
+    return match;
+  });
+  return dest;
+};
+Transform$4.prototype.unpipe = function (from) {
+  this.emit('unpipe', from);
+  return this;
+};
+Transform$4.prototype.format = function (dest) {
+  throw new Error(['Warning: .format() is deprecated in Minilog v2! Use .pipe() instead. For example:', 'var Minilog = require(\'minilog\');', 'Minilog', '  .pipe(Minilog.backends.console.formatClean)', '  .pipe(Minilog.backends.console);'].join('\n'));
+};
+Transform$4.mixin = function (dest) {
+  var o = Transform$4.prototype,
+    k;
+  for (k in o) {
+    o.hasOwnProperty(k) && (dest.prototype[k] = o[k]);
+  }
+};
+var transform = Transform$4;
+
+// default filter
+var Transform$3 = transform;
+var levelMap = {
+  debug: 1,
+  info: 2,
+  warn: 3,
+  error: 4
+};
+function Filter() {
+  this.enabled = true;
+  this.defaultResult = true;
+  this.clear();
+}
+Transform$3.mixin(Filter);
+
+// allow all matching, with level >= given level
+Filter.prototype.allow = function (name, level) {
+  this._white.push({
+    n: name,
+    l: levelMap[level]
+  });
+  return this;
+};
+
+// deny all matching, with level <= given level
+Filter.prototype.deny = function (name, level) {
+  this._black.push({
+    n: name,
+    l: levelMap[level]
+  });
+  return this;
+};
+Filter.prototype.clear = function () {
+  this._white = [];
+  this._black = [];
+  return this;
+};
+function test(rule, name) {
+  // use .test for RegExps
+  return rule.n.test ? rule.n.test(name) : rule.n == name;
+}
+Filter.prototype.test = function (name, level) {
+  var i,
+    len = Math.max(this._white.length, this._black.length);
+  for (i = 0; i < len; i++) {
+    if (this._white[i] && test(this._white[i], name) && levelMap[level] >= this._white[i].l) {
+      return true;
+    }
+    if (this._black[i] && test(this._black[i], name) && levelMap[level] <= this._black[i].l) {
+      return false;
+    }
+  }
+  return this.defaultResult;
+};
+Filter.prototype.write = function (name, level, args) {
+  if (!this.enabled || this.test(name, level)) {
+    return this.emit('item', name, level, args);
+  }
+};
+var filter = Filter;
+
+(function (module, exports) {
+  var Transform = transform,
+    Filter = filter;
+  var log = new Transform(),
+    slice = Array.prototype.slice;
+  exports = module.exports = function create(name) {
+    var o = function o() {
+      log.write(name, undefined, slice.call(arguments));
+      return o;
+    };
+    o.debug = function () {
+      log.write(name, 'debug', slice.call(arguments));
+      return o;
+    };
+    o.info = function () {
+      log.write(name, 'info', slice.call(arguments));
+      return o;
+    };
+    o.warn = function () {
+      log.write(name, 'warn', slice.call(arguments));
+      return o;
+    };
+    o.error = function () {
+      log.write(name, 'error', slice.call(arguments));
+      return o;
+    };
+    o.log = o.debug; // for interface compliance with Node and browser consoles
+    o.suggest = exports.suggest;
+    o.format = log.format;
+    return o;
+  };
+
+  // filled in separately
+  exports.defaultBackend = exports.defaultFormatter = null;
+  exports.pipe = function (dest) {
+    return log.pipe(dest);
+  };
+  exports.end = exports.unpipe = exports.disable = function (from) {
+    return log.unpipe(from);
+  };
+  exports.Transform = Transform;
+  exports.Filter = Filter;
+  // this is the default filter that's applied when .enable() is called normally
+  // you can bypass it completely and set up your own pipes
+  exports.suggest = new Filter();
+  exports.enable = function () {
+    if (exports.defaultFormatter) {
+      return log.pipe(exports.suggest) // filter
+      .pipe(exports.defaultFormatter) // formatter
+      .pipe(exports.defaultBackend); // backend
+    }
+    return log.pipe(exports.suggest) // filter
+    .pipe(exports.defaultBackend); // formatter
+  };
+})(minilog$2, minilog$2.exports);
+var minilogExports = minilog$2.exports;
+
+var hex = {
+  black: '#000',
+  red: '#c23621',
+  green: '#25bc26',
+  yellow: '#bbbb00',
+  blue: '#492ee1',
+  magenta: '#d338d3',
+  cyan: '#33bbc8',
+  gray: '#808080',
+  purple: '#708'
+};
+function color$2(fg, isInverse) {
+  if (isInverse) {
+    return 'color: #fff; background: ' + hex[fg] + ';';
+  } else {
+    return 'color: ' + hex[fg] + ';';
+  }
+}
+var util = color$2;
+
+var Transform$2 = transform,
+  color$1 = util;
+var colors$1 = {
+    debug: ['cyan'],
+    info: ['purple'],
+    warn: ['yellow', true],
+    error: ['red', true]
+  },
+  logger$2 = new Transform$2();
+logger$2.write = function (name, level, args) {
+  var fn = console.log;
+  if (console[level] && console[level].apply) {
+    fn = console[level];
+    fn.apply(console, ['%c' + name + ' %c' + level, color$1('gray'), color$1.apply(color$1, colors$1[level])].concat(args));
+  }
+};
+
+// NOP, because piping the formatted logs can only cause trouble.
+logger$2.pipe = function () {};
+var color_1 = logger$2;
+
+var Transform$1 = transform,
+  color = util,
+  colors = {
+    debug: ['gray'],
+    info: ['purple'],
+    warn: ['yellow', true],
+    error: ['red', true]
+  },
+  logger$1 = new Transform$1();
+logger$1.write = function (name, level, args) {
+  var fn = console.log;
+  if (level != 'debug' && console[level]) {
+    fn = console[level];
+  }
+  var i = 0;
+  if (level != 'info') {
+    for (; i < args.length; i++) {
+      if (typeof args[i] != 'string') break;
+    }
+    fn.apply(console, ['%c' + name + ' ' + args.slice(0, i).join(' '), color.apply(color, colors[level])].concat(args.slice(i)));
+  } else {
+    fn.apply(console, ['%c' + name, color.apply(color, colors[level])].concat(args));
+  }
+};
+
+// NOP, because piping the formatted logs can only cause trouble.
+logger$1.pipe = function () {};
+var minilog$1 = logger$1;
+
+var Transform = transform;
+var newlines = /\n+$/,
+  logger = new Transform();
+logger.write = function (name, level, args) {
+  var i = args.length - 1;
+  if (typeof console === 'undefined' || !console.log) {
+    return;
+  }
+  if (console.log.apply) {
+    return console.log.apply(console, [name, level].concat(args));
+  } else if (JSON && JSON.stringify) {
+    // console.log.apply is undefined in IE8 and IE9
+    // for IE8/9: make console.log at least a bit less awful
+    if (args[i] && typeof args[i] == 'string') {
+      args[i] = args[i].replace(newlines, '');
+    }
+    try {
+      for (i = 0; i < args.length; i++) {
+        args[i] = JSON.stringify(args[i]);
+      }
+    } catch (e) {}
+    console.log(args.join(' '));
+  }
+};
+logger.formatters = ['color', 'minilog'];
+logger.color = color_1;
+logger.minilog = minilog$1;
+var console_1 = logger;
+
+var array;
+var hasRequiredArray;
+function requireArray() {
+  if (hasRequiredArray) return array;
+  hasRequiredArray = 1;
+  var Transform = transform,
+    cache = [];
+  var logger = new Transform();
+  logger.write = function (name, level, args) {
+    cache.push([name, level, args]);
+  };
+
+  // utility functions
+  logger.get = function () {
+    return cache;
+  };
+  logger.empty = function () {
+    cache = [];
+  };
+  array = logger;
+  return array;
+}
+
+var localstorage;
+var hasRequiredLocalstorage;
+function requireLocalstorage() {
+  if (hasRequiredLocalstorage) return localstorage;
+  hasRequiredLocalstorage = 1;
+  var Transform = transform,
+    cache = false;
+  var logger = new Transform();
+  logger.write = function (name, level, args) {
+    if (typeof window == 'undefined' || typeof JSON == 'undefined' || !JSON.stringify || !JSON.parse) return;
+    try {
+      if (!cache) {
+        cache = window.localStorage.minilog ? JSON.parse(window.localStorage.minilog) : [];
+      }
+      cache.push([new Date().toString(), name, level, args]);
+      window.localStorage.minilog = JSON.stringify(cache);
+    } catch (e) {}
+  };
+  localstorage = logger;
+  return localstorage;
+}
+
+var jquery_simple;
+var hasRequiredJquery_simple;
+function requireJquery_simple() {
+  if (hasRequiredJquery_simple) return jquery_simple;
+  hasRequiredJquery_simple = 1;
+  var Transform = transform;
+  var cid = new Date().valueOf().toString(36);
+  function AjaxLogger(options) {
+    this.url = options.url || '';
+    this.cache = [];
+    this.timer = null;
+    this.interval = options.interval || 30 * 1000;
+    this.enabled = true;
+    this.jQuery = window.jQuery;
+    this.extras = {};
+  }
+  Transform.mixin(AjaxLogger);
+  AjaxLogger.prototype.write = function (name, level, args) {
+    if (!this.timer) {
+      this.init();
+    }
+    this.cache.push([name, level].concat(args));
+  };
+  AjaxLogger.prototype.init = function () {
+    if (!this.enabled || !this.jQuery) return;
+    var self = this;
+    this.timer = setTimeout(function () {
+      var i,
+        logs = [],
+        ajaxData,
+        url = self.url;
+      if (self.cache.length == 0) return self.init();
+      // Test each log line and only log the ones that are valid (e.g. don't have circular references).
+      // Slight performance hit but benefit is we log all valid lines.
+      for (i = 0; i < self.cache.length; i++) {
+        try {
+          JSON.stringify(self.cache[i]);
+          logs.push(self.cache[i]);
+        } catch (e) {}
+      }
+      if (self.jQuery.isEmptyObject(self.extras)) {
+        ajaxData = JSON.stringify({
+          logs: logs
+        });
+        url = self.url + '?client_id=' + cid;
+      } else {
+        ajaxData = JSON.stringify(self.jQuery.extend({
+          logs: logs
+        }, self.extras));
+      }
+      self.jQuery.ajax(url, {
+        type: 'POST',
+        cache: false,
+        processData: false,
+        data: ajaxData,
+        contentType: 'application/json',
+        timeout: 10000
+      }).success(function (data, status, jqxhr) {
+        if (data.interval) {
+          self.interval = Math.max(1000, data.interval);
+        }
+      }).error(function () {
+        self.interval = 30000;
+      }).always(function () {
+        self.init();
+      });
+      self.cache = [];
+    }, this.interval);
+  };
+  AjaxLogger.prototype.end = function () {};
+
+  // wait until jQuery is defined. Useful if you don't control the load order.
+  AjaxLogger.jQueryWait = function (onDone) {
+    if (typeof window !== 'undefined' && (window.jQuery || window.$)) {
+      return onDone(window.jQuery || window.$);
+    } else if (typeof window !== 'undefined') {
+      setTimeout(function () {
+        AjaxLogger.jQueryWait(onDone);
+      }, 200);
+    }
+  };
+  jquery_simple = AjaxLogger;
+  return jquery_simple;
+}
+
+(function (module, exports) {
+  var Minilog = minilogExports;
+  var oldEnable = Minilog.enable,
+    oldDisable = Minilog.disable,
+    isChrome = typeof navigator != 'undefined' && /chrome/i.test(navigator.userAgent),
+    console = console_1;
+
+  // Use a more capable logging backend if on Chrome
+  Minilog.defaultBackend = isChrome ? console.minilog : console;
+
+  // apply enable inputs from localStorage and from the URL
+  if (typeof window != 'undefined') {
+    try {
+      Minilog.enable(JSON.parse(window.localStorage['minilogSettings']));
+    } catch (e) {}
+    if (window.location && window.location.search) {
+      var match = RegExp('[?&]minilog=([^&]*)').exec(window.location.search);
+      match && Minilog.enable(decodeURIComponent(match[1]));
+    }
+  }
+
+  // Make enable also add to localStorage
+  Minilog.enable = function () {
+    oldEnable.call(Minilog, true);
+    try {
+      window.localStorage['minilogSettings'] = JSON.stringify(true);
+    } catch (e) {}
+    return this;
+  };
+  Minilog.disable = function () {
+    oldDisable.call(Minilog);
+    try {
+      delete window.localStorage.minilogSettings;
+    } catch (e) {}
+    return this;
+  };
+  exports = module.exports = Minilog;
+  exports.backends = {
+    array: requireArray(),
+    browser: Minilog.defaultBackend,
+    localStorage: requireLocalstorage(),
+    jQuery: requireJquery_simple()
+  };
+})(web, web.exports);
+var webExports = web.exports;
+
+var minilog = webExports;
+minilog.enable();
+var log = minilog('vm');
+var log$1 = /*@__PURE__*/getDefaultExportFromCjs(log);
+
 var en = {
 	"xcxQR.name": "QR Code",
-	"xcxQR.generateQRCode": "[TEXT] to QR code with color [COLOR]",
+	"xcxQR.generateQRCode": "[TEXT] to QR code with color [COLOR] as [NAME]",
+	"xcxQR.generateQRCode.defaultText": "data",
+	"xcxQR.generateQRCode.defaultName": "costume",
 	"xcxQR.startQRScan": "start scan QR code",
 	"xcxQR.stopQRScan": "stop scan QR code",
 	"xcxQR.reportQRData": "QR code data",
@@ -1123,7 +1649,9 @@ var en = {
 };
 var ja = {
 	"xcxQR.name": "QRコード",
-	"xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードにする",
+	"xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードを[NAME]にする",
+	"xcxQR.generateQRCode.defaultText": "データ",
+	"xcxQR.generateQRCode.defaultName": "コスチューム",
 	"xcxQR.startQRScan": "QRコードの読み取りを始める",
 	"xcxQR.stopQRScan": "QRコードの読み取りを止める",
 	"xcxQR.reportQRData": "QRコードのデータ",
@@ -1139,7 +1667,9 @@ var translations = {
 	ja: ja,
 	"ja-Hira": {
 	"xcxQR.name": "QRコード",
-	"xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードにする",
+	"xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードを[NAME]にする",
+	"xcxQR.generateQRCode.defaultText": "データ",
+	"xcxQR.generateQRCode.defaultName": "コスチューム",
 	"xcxQR.startQRScan": "QRコードのよみとりをはじめる",
 	"xcxQR.stopQRScan": "QRコードのよみとりをとめる",
 	"xcxQR.reportQRData": "QRコードのデータ",
@@ -1153,6 +1683,343 @@ var translations = {
 };
 
 var img = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAXoAAAF6CAYAAAAXoJOQAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAENdJREFUeJzt3W1s3XXdx/HvOes2RIbdBgJmakB2A0yUDISFMFe27AajkKhZUMAgGp9pQqJZspipxAcu3hB9qIRgNISAXkIiM+pkupDCHI65oUM2lpghY6x2XXcb1/O/HkyvS8HBvz09+7Xfvl7J7wk7OefTP6fvbP92XaOqqniNqyNiVURcHxFXRcRZr30AAGPKqxFxOCK2RcQDEfFoRPxf3Bv/FvrzIuL7EXHLGR4IwOjaGBG3RsS+iP8P/YURsSkiLi02C4DRtCsiFkbEgWZENCLiwRB5gEwujVN3aaJRVdUtEfE/ZfcA0CHXNCPiU6VXANAxq5oR8b7SKwDomOsbVVXtj4jzSy8BoCOON6r/8o30AOTR1e4TvPDCC7F+/frYvn177N69O/bu3RtDQ0OjsY3kzjvvvJgxY0ZceeWVsWLFili8eHE0Go3Ss0ZFq9WK3t7e2LBhQzz//POxe/fuePXVV0vPYhzo6uqKmTNnxkUXXRTXXnttfOQjH4l58+a196TVCD311FPVkiVLqjj1t68cp+0zd+7c6pFHHhnpW3JMaLVa1f3331/Nnj27+PV0cpxGo1GtWLGi2rFjx4jflyMK/Ve/+tWq2WwWvwBOzvOxj32sGhgYGPGbupTBwcFq2bJlxa+fk/NMnjy5+uY3v1m1Wq1hvzeHHfo777yz+Afs5D+XXXZZ1d/fP+w3dCl9fX3V5ZdfXvy6OfnPXXfdNezYDyv03/72t4t/kM7EOddcc0114sSJYb2hSxgaGqqWL19e/Ho5E+esXr16WO/R2qHftm1bNWXKlOIfoDOxzle+8pVhh/dM+853vlP8OjkT6zSbzaq3t7f2e7R26FeuXFn8g3Mm3pk2bVrV19c3ogCfCf39/VV3d3fx6+RMvLNkyZLa79Nm1LBr1674xS9+UeehMKoGBwfjoYceKj3jtH74wx/GwYMHS89gAvrNb34TL774Yq3H1gr9I488EpW/V0UhP//5z0tPOK2f/vSnpScwQVVVFY8//nitx9YK/e9///u2BkE7nnnmmdIT/qtWqxVbtmwpPYMJ7A9/+EOtx9UK/cDAQFtjoB2vvPJKHD16tPSM1zl58mQcOXKk9AwmsFG9dfPyyy+3NQbaUVVV7N+/v/SM19m3b1/pCUxwdT8vaoW+1Wq1NQbaNRa/RuRnOlFa3c+LWqEHYPwSeoDkhB4gOaEHSE7oAZITeoDkhB4gOaEHSK7tfxx8pBYuXBiLFi0q9fJ0yN69e+PHP/5x6Rnj2ic/+cmYNWtW6RmMst/97nfR29tb5LWLhb6npye+/vWvl3p5OmTTpk1C36bPfe5zccMNN5SewShbs2ZNsdC7dQOQnNADJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QnNADJNdVekCnXHLJJXHw4MHSM8akX/3qV7FgwYLSMyhgy5YtsWzZstIzxqTp06fH7t27S8/oiLSh37dvXxw7dqz0jDFpcHCw9AQKOXz4cPT395eeMSYdP3689ISOcesGIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5NKGvtFolJ4wZrk2E5f/96eX+dp0lR7QKU888UQcOnSo9Iwxp9lsxnXXXVd6BoVcd911sWHDhmi1WqWnjDnnnntu6Qkdkzb0H/jAB0pPgDFn6tSpceONN5aewRmW9tYNAKcIPUByQg+QnNADJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QnNADJCf0AMl1lXrhPXv2xK9//etSL0+HbN++vfSEcW/Lli1x4sSJ0jMYZXv27Cn22sVC/+CDD8aDDz5Y6uVhzLr77rtLTyAZt24AkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkqsV+nPPPbfTO+ANXXDBBaUnvI7PC0p7+9vfXutxtUL/7ne/u60x0I5JkybFlClTSs94nZkzZ8a0adNKz2ACO/vss2s9rlbor7zyyrbGQDsuv/zy6Ooq9mOZ3pDPDUqq+/6rFfqenp62xkA7brrpptITTmvx4sWlJzCB1f3caFRVVb3Zg6qqijlz5sSuXbvaHgbDMWnSpHjuuedi7ty5paf8Vzt37owrrrgiWq1W6SlMMHPnzo0//elP0Wy++e/Xa/2OvtFoxJo1a9oeBsN1xx13jNnIR0TMmzcvPv7xj5eewQR0zz331Ip8RERUNQ0NDVVLliypIsJxzsh517veVfX399d9ixbz0ksvVTNnzix+vZyJc1atWjWs92jt0FdVVfX19VVXXHFF8Q/SyX/e8pa3VE899dSw3swlPfnkk9XZZ59d/Lo5+c9ll11WDQwMDOv9OazQV1VVDQwMVLfcckvxD9bJey644ILq2WefHe5bs7hnn322uvjii4tfPyfvWbRo0bAjX1UjCH1VnbqNc++991Zve9vbin/gTp7TbDarVatWVS+99NJI3pZjQl9fX3XXXXdVzWaz+PV08pxzzjmn+trXvlYdP358RO/LWt91czoDAwNx//33x6OPPhqbN2+Oo0ePjvSpmKBmzJgR8+bNixtvvDFuv/32mDNnTulJo+KFF16I73//+7F+/frYuXNnnDx5svQkxpFGoxGzZs2K9773vbFy5cq47bbboru7e+TP107oX2tgYCAOHjwYQ0NDo/WUJDZ9+vSYPn166Rkd949//CMOHz4c/f39pacwTrzjHe+Is846a9Seb1RDD8DY46dXAiQn9ADJCT1AckIPkJzQAyQn9ADJCT1AckIPkJzQAyQn9ADJCT1AckIPkJzQAyQn9ADJCT1AckIPkJzQAyQn9ADJCT1AckIPkJzQAyQn9ADJCT1AckIPkJzQAyQn9ADJCT1AckIPkJzQAyQn9ADJCT1AckIPkJzQAyQn9ADJCT1Acl2j+WTHjx+Pv/3tb6P5lCTW3d0d06ZNi8mTJ5eeMmL79++Pw4cPl55Ryzvf+c5xc62PHDkSr7zySukZtcyYMSO6u7tLz3hjVRv+/ve/V9/97nerm266qZo1a1bVaDSqiHCc2qerq6uaP39+9cUvfrH6y1/+0s7bsYj58+cXv4Z1z09+8pPSl6u2tWvXFr9edc8nPvGJ0pfrTY3od/QnTpyIb3zjG7Fu3bo4cuTISJ4CIiLi5MmTsWPHjtixY0d861vfijvvvDPWrVsXM2bMKD2tlqqqSk+ordVqlZ5Q23i6ruNh67Dv0R84cCCWL18ea9euFXlGVavVivvuuy+uuuqq2Lx5c+k5kMawQj84OBg9PT3x29/+tlN7IP7617/G4sWL4+mnny49BVIYVug/+9nPxo4dOzq1Bf7PsWPH4kMf+pAv7sMoqB36hx9+OB566KFOboH/0NfXF3fffXfpGTDu1Qp9q9WKL3/5y53eAq/z8MMPx/PPP196BoxrtUK/adMmn2wU0Wq14kc/+lHpGTCu1Qr9448/3ukdcFobN24sPQHGtVqh/+Mf/9jpHXBa27ZtKz0BxrVaoT969Gind8BpDQ4ORl9fX+kZMG7VCv3+/fs7vQPe0KFDh0pPgHHLT68ESE7oAZITeoDkhB4gOaEHSE7oAZITeoDkhB4gOaEHSG5E/2bsaLj11lvj05/+dKmXp0O2b9/uZ8jDGFMs9BdffHEsXbq01MvTIVOnTi09AXgNt24AkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oYc2TJ48ufSE2qZMmVJ6Qm3j6bqOh63F/nFwyGDr1q2lJ9R2xx13xM0331x6Ri3r1q2LqqpKz0gjbeg3b94chw4dKj1jzGk2m3H99dfH1KlTS0/hDDt27FjpCbWNp63jQdrQ9/T0xNGjR0vPGJM2btwYH/zgB0vPAM6QtPfo/bHv9FwbmFjShh6AU4QeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB8acRqNRekIqXaUHwHh2++23x5///OfSM2pZs2ZNrF69uvSMWnp7e+Pqq68uPaOWD3/4w7F27drSM96Q0EMbtm7dGs8991zpGbUMDQ3FggULSs+o5bHHHotnnnmm9Ixa5syZU3rCm3LrBiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkhN6gOSEHiA5oQdITugBkusqPaBTLrzwwjh48GDpGWPStGnTSk8AzqC0oX/xxRdLTwAYE9y6AUhO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeIDmhB0hO6AGSE3qA5IQeILm0P9QMzoTvfe97ceDAgdIzalm0aFHpCbXddtttMX/+/NIzannPe95TesKbEnpoQ09PT+kJKc2ePTtmz55dekYabt0AJCf0AMkJPUByQg+QnNADJCf0AMkJPUByQg+QXLG/MPXEE0/E6tWrS708HbJ3797SE4DXKBb63t7e6O3tLfXyABOGWzcAyQk9QHJCD5Cc0AMkJ/QAyQk9QHJCD5Cc0AMkVyv0jUaj0zvgDU2aNKn0BBi3aoX+/PPP7/QOeEMXXXRR6QkwbtUK/SWXXNLpHXBab33rW/2OHtpQK/QLFizo9A44rauvvjqaTV9OgpGq9dmzcuVK9+kp5qMf/WjpCTCuNaqqquo8cOnSpbFhw4ZO74H/0N3dHXv27Inu7u7SU2Dcqv3n4Xvuuccfnznj1q5dK/LQptrlXrhwYXzpS1/q5Bb4D8uWLYvPf/7zpWfAuFf71s2/fOYzn4n77ruvU3sgIiLe//73xy9/+Uvf2gujYNj3Yn7wgx/EvffeG5MnT+7EHojly5fHpk2bRB5GyYhuun/hC1+IrVu3xooVK3w3DqNmzpw58cADD8T69evjnHPOKT0H0hj2rZvX2rlzZzz22GPx9NNPx8svvxx9fX1x8uTJ0dpHYueff35ceumlMXfu3Fi6dGlce+21vuAPHdB26AEY25oRcbz0CAA65tVmRGwtvQKAjjncjIgnS68AoGO2NSPiodIrAOiYB5oRsSUiflZ6CQCjbmNEPNr45zfdnBcRvRFxaclFAIyaXRFxQ0Ts+9c3LR/453/YWGoRAKPmZxGxMCL2RZz6Pvp//8VGRNwcEZ+KiPdFxDkR4e+hA4xtx+PUd1A+Gae+7rrl33/xfwH2LaLK0gfI8gAAAABJRU5ErkJggg==";
+
+function _arrayWithHoles(r) {
+  if (Array.isArray(r)) return r;
+}
+
+function _iterableToArrayLimit(r, l) {
+  var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
+  if (null != t) {
+    var e,
+      n,
+      i,
+      u,
+      a = [],
+      f = !0,
+      o = !1;
+    try {
+      if (i = (t = t.call(r)).next, 0 === l) ; else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0);
+    } catch (r) {
+      o = !0, n = r;
+    } finally {
+      try {
+        if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return;
+      } finally {
+        if (o) throw n;
+      }
+    }
+    return a;
+  }
+}
+
+function _arrayLikeToArray(r, a) {
+  (null == a || a > r.length) && (a = r.length);
+  for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
+  return n;
+}
+
+function _unsupportedIterableToArray(r, a) {
+  if (r) {
+    if ("string" == typeof r) return _arrayLikeToArray(r, a);
+    var t = {}.toString.call(r).slice(8, -1);
+    return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0;
+  }
+}
+
+function _nonIterableRest() {
+  throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
+
+function _slicedToArray(r, e) {
+  return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest();
+}
+
+/**
+ * This module provides a set of utility functions for working with costumes.
+ * @module costume-util
+ */
+
+/**
+ * Convert full-width characters to half-width characters.
+ * @param {string} str - string to convert
+ * @returns {string} - converted string
+ */
+var convertToHalfWidthInt = function convertToHalfWidthInt(str) {
+  return str.replace(/[０-９]/g, function (s) {
+    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+  }).replace(/[-－﹣−‐⁃‑‒–—﹘―⎯⏤ーｰ─━]/g, '-');
+};
+
+/**
+ * Convert array index from one-base to zero-base.
+ * If index is negative, it is converted from the end of the array.
+ * Returns most close index if index is out of range.
+ * @param {number} index - one-base array index
+ * @param {number} length - array length
+ * @returns {number | undefined} - converted array index
+ */
+var convertToZeroBaseIndex = function convertToZeroBaseIndex(index, length) {
+  if (length === 0) {
+    return;
+  }
+  if (index > length) {
+    return length - 1;
+  }
+  if (index < 0) {
+    index = length + index;
+    if (index < 0) {
+      return 0;
+    }
+  } else {
+    index--;
+  }
+  return index;
+};
+
+/**
+ * Get costume index by name or number.
+ * If costumeName was not found and it is a number, it is treated as a one-base index.
+ * Then that index was a negative number, it is treated as an index from the end of the costume list.
+ * @param {Target!} target - target to get costume
+ * @param {string} costumeName - name or number of the costume
+ * @returns {number?} - costume index
+ */
+var getCostumeIndexByNameOrNumber = function getCostumeIndexByNameOrNumber(target, costumeName) {
+  var costumeArray = target.getCostumes();
+  var costumeIndex = costumeArray.findIndex(function (c) {
+    return c.name === costumeName;
+  });
+  if (costumeIndex === -1) {
+    var costumeNumber = parseInt(convertToHalfWidthInt(costumeName), 10);
+    if (isNaN(costumeNumber) || costumeNumber === 0) {
+      return null;
+    }
+    costumeIndex = convertToZeroBaseIndex(costumeNumber, costumeArray.length);
+  }
+  return costumeIndex;
+};
+
+// Convert base64 to raw binary data held in a dataURL.
+// @see https://stackoverflow.com/questions/4998908/convert-data-uri-to-file-then-append-to-formdata
+/**
+ * Convert dataURL to binary data.
+ * @param {string} dataURL - data to convert
+ * @returns {Uint8Array} - binary data
+ */
+var dataURLToBinary = function dataURLToBinary(dataURL) {
+  var byteString;
+  if (dataURL.split(',')[0].indexOf('base64') >= 0) {
+    byteString = atob(dataURL.split(',')[1]);
+  } else {
+    byteString = decodeURI(dataURL.split(',')[1]);
+  }
+  var data = new Uint8Array(byteString.length);
+  for (var i = 0; i < byteString.length; i++) {
+    data[i] = byteString.charCodeAt(i);
+  }
+  return data;
+};
+
+/**
+ * Load vector image and create skin for costume.
+ * @param {Costume} costume - costume to load
+ * @param {Runtime} runtime - runtime
+ * @returns {Promise<Costume>} - a Promise that resolves when the image is loaded then returns the costume
+ */
+var loadVector = function loadVector(costume, runtime) {
+  return new Promise(function (resolve) {
+    var svgString = costume.asset.decodeText();
+    costume.skinId = runtime.renderer.createSVGSkin(svgString);
+    costume.size = runtime.renderer.getSkinSize(costume.skinId);
+    var rotationCenter = runtime.renderer.getSkinRotationCenter(costume.skinId);
+    costume.rotationCenterX = rotationCenter[0];
+    costume.rotationCenterY = rotationCenter[1];
+    costume.bitmapResolution = 1;
+    resolve(costume);
+  });
+};
+
+/**
+ * Load bitmap image and create skin for costume.
+ * @param {Costume} costume - costume to load
+ * @param {Runtime} runtime - runtime
+ * @returns {Promise<Costume>} - a Promise that resolves when the image is loaded then returns the costume
+ */
+var loadBitmap = function loadBitmap(costume, runtime) {
+  var asset = costume.asset;
+  return createImageBitmap(new Blob([asset.data], {
+    type: asset.assetType.contentType
+  })).then(function (imageElem) {
+    var bitmapResolution = 2;
+    var canvas = document.createElement('canvas');
+    canvas.width = imageElem.width;
+    canvas.height = imageElem.height;
+    var context = canvas.getContext('2d');
+    context.drawImage(imageElem, 0, 0);
+    // create bitmap skin
+    costume.bitmapResolution = bitmapResolution;
+    costume.skinId = runtime.renderer.createBitmapSkin(canvas, costume.bitmapResolution);
+    var renderSize = runtime.renderer.getSkinSize(costume.skinId);
+    costume.size = [renderSize[0] * costume.bitmapResolution, renderSize[1] * costume.bitmapResolution];
+    var rotationCenter = runtime.renderer.getSkinRotationCenter(costume.skinId);
+    costume.rotationCenterX = rotationCenter[0] * costume.bitmapResolution;
+    costume.rotationCenterY = rotationCenter[1] * costume.bitmapResolution;
+    return costume;
+  });
+};
+
+/**
+ * Resize bitmap image.
+ * @param {string} dataURL - image data
+ * @param {number} width - max width of the resized image
+ * @param {number} height - max height of the resized image
+ * @returns {Promise<string>} - a Promise that resolves when the image is resized then returns the dataURL
+ * @see https://stackoverflow.com/questions/23945494/use-html5-to-resize-an-image-before-upload
+ */
+var resizeBitmap = function resizeBitmap(dataURL, width, height) {
+  var mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0];
+  return new Promise(function (resolve, reject) {
+    var image = new Image();
+    image.onload = function () {
+      var canvas = document.createElement('canvas');
+      var scale = 1;
+      if (image.width > image.height) {
+        if (image.width > width) {
+          scale = width / image.width;
+        }
+      } else if (image.height > height) {
+        scale = height / image.height;
+      }
+      canvas.width = image.width * scale;
+      canvas.height = image.height * scale;
+      var context = canvas.getContext('2d');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL(mimeString));
+      image.onload = null;
+      image.onerror = null;
+    };
+    image.onerror = function () {
+      reject(new Error('dataURL load failed.'));
+      image.onload = null;
+      image.onerror = null;
+    };
+    image.src = dataURL;
+  });
+};
+
+/**
+ * Add image as a costume.
+ * This will not update the target's current costume.
+ * @param {Target} target - target to add costume
+ * @param {string} dataURL - image data
+ * @param {Runtime} runtime - runtime
+ * @param {string} imageName - name of the costume
+ * @param {VirtualMachine} vm - scratch vm
+ * @returns {Promise<Costume>} - a Promise that resolves when the image is added then returns the costume
+*/
+var addImageAsCostume = /*#__PURE__*/function () {
+  var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(target, dataURL, runtime) {
+    var imageName,
+      vm,
+      mimeString,
+      assetType,
+      dataFormat,
+      bitmapResolution,
+      _runtime$renderer$get,
+      _runtime$renderer$get2,
+      stageWidth,
+      stageHeight,
+      asset,
+      newCostume,
+      currentCostumeIndex,
+      loader,
+      _args = arguments;
+    return _regeneratorRuntime.wrap(function _callee$(_context) {
+      while (1) switch (_context.prev = _context.next) {
+        case 0:
+          imageName = _args.length > 3 && _args[3] !== undefined ? _args[3] : 'costume';
+          vm = _args.length > 4 ? _args[4] : undefined;
+          mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0];
+          if (!(mimeString === 'image/svg+xml')) {
+            _context.next = 8;
+            break;
+          }
+          assetType = runtime.storage.AssetType.ImageVector;
+          dataFormat = runtime.storage.DataFormat.SVG;
+          _context.next = 19;
+          break;
+        case 8:
+          if (!(mimeString === 'image/jpeg')) {
+            _context.next = 13;
+            break;
+          }
+          assetType = runtime.storage.AssetType.ImageBitmap;
+          dataFormat = runtime.storage.DataFormat.JPG;
+          _context.next = 19;
+          break;
+        case 13:
+          if (!(mimeString === 'image/png')) {
+            _context.next = 18;
+            break;
+          }
+          assetType = runtime.storage.AssetType.ImageBitmap;
+          dataFormat = runtime.storage.DataFormat.PNG;
+          _context.next = 19;
+          break;
+        case 18:
+          return _context.abrupt("return", Promise.reject(new Error("Unsupported image type: ".concat(mimeString))));
+        case 19:
+          bitmapResolution = 2;
+          if (!(assetType === runtime.storage.AssetType.ImageBitmap)) {
+            _context.next = 25;
+            break;
+          }
+          _runtime$renderer$get = runtime.renderer.getNativeSize(), _runtime$renderer$get2 = _slicedToArray(_runtime$renderer$get, 2), stageWidth = _runtime$renderer$get2[0], stageHeight = _runtime$renderer$get2[1];
+          _context.next = 24;
+          return resizeBitmap(dataURL, stageWidth * bitmapResolution, stageHeight * bitmapResolution);
+        case 24:
+          dataURL = _context.sent;
+        case 25:
+          asset = runtime.storage.createAsset(assetType, dataFormat, dataURLToBinary(dataURL), null, true // generate md5
+          );
+          newCostume = {
+            name: imageName,
+            dataFormat: dataFormat,
+            asset: asset,
+            md5: "".concat(asset.assetId, ".").concat(dataFormat),
+            assetId: asset.assetId,
+            bitmapResolution: bitmapResolution
+          };
+          currentCostumeIndex = target.currentCostume;
+          if (!vm) {
+            _context.next = 30;
+            break;
+          }
+          return _context.abrupt("return", vm.addCostume(newCostume.md5, newCostume, target.id).then(function () {
+            target.setCostume(currentCostumeIndex);
+            vm.emitTargetsUpdate();
+            return newCostume;
+          }));
+        case 30:
+          // no vm, so add costume directly
+          loader = assetType === runtime.storage.AssetType.ImageVector ? loadVector : loadBitmap;
+          return _context.abrupt("return", loader(newCostume, runtime).then(function (costume) {
+            target.addCostume(costume);
+            target.setCostume(currentCostumeIndex);
+            runtime.emitProjectChanged();
+            return costume;
+          }));
+        case 32:
+        case "end":
+          return _context.stop();
+      }
+    }, _callee);
+  }));
+  return function addImageAsCostume(_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+}();
 
 var QRCode;
 _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
@@ -1271,28 +2138,6 @@ var ExtensionBlocks = /*#__PURE__*/function () {
         blockIconURI: img,
         showStatusButton: false,
         blocks: [{
-          opcode: 'generateQRCode',
-          blockType: BlockType$1.REPORTER,
-          text: formatMessage({
-            id: 'xcxQR.generateQRCode',
-            default: '[TEXT] to QR code with color [COLOR]'
-          }),
-          disableMonitor: true,
-          func: 'generateQRCode',
-          arguments: {
-            TEXT: {
-              type: ArgumentType$1.STRING,
-              defaultValue: formatMessage({
-                id: 'xcxQR.generateQRCode.defaultText',
-                default: 'QR'
-              })
-            },
-            COLOR: {
-              type: ArgumentType$1.COLOR,
-              defaultValue: '#000000'
-            }
-          }
-        }, '---', {
           opcode: 'startQRScan',
           blockType: BlockType$1.COMMAND,
           text: formatMessage({
@@ -1350,6 +2195,35 @@ var ExtensionBlocks = /*#__PURE__*/function () {
           }),
           isEdgeActivated: false,
           shouldRestartExistingThreads: true
+        }, '---', {
+          opcode: 'generateQRCode',
+          blockType: BlockType$1.COMMAND,
+          text: formatMessage({
+            id: 'xcxQR.generateQRCode',
+            default: '[TEXT] to QR code with color [COLOR] as [NAME]'
+          }),
+          disableMonitor: true,
+          func: 'generateQRCode',
+          arguments: {
+            TEXT: {
+              type: ArgumentType$1.STRING,
+              defaultValue: formatMessage({
+                id: 'xcxQR.generateQRCode.defaultText',
+                default: 'QR'
+              })
+            },
+            COLOR: {
+              type: ArgumentType$1.COLOR,
+              defaultValue: '#000000'
+            },
+            NAME: {
+              type: ArgumentType$1.STRING,
+              defaultValue: formatMessage({
+                id: 'xcxQR.generateQRCode.defaultName',
+                default: 'costume'
+              })
+            }
+          }
         }],
         menus: {
           qrCornerMenu: {
@@ -1397,11 +2271,17 @@ var ExtensionBlocks = /*#__PURE__*/function () {
     value: function getPointMenu() {
       return ['x', 'y'];
     }
+
+    /**
+     * Generate QR code from text.
+     * @param {string} text - the text to be encoded in the QR code.
+     * @param {string} dark - the color of the dark part of the QR code.
+     * @returns {Promise<string>} - resolves dataURL of the QR code
+     */
   }, {
-    key: "generateQRCode",
-    value: function generateQRCode(args) {
-      var text = Cast$1.toString(args.TEXT);
-      var dark = args.COLOR;
+    key: "textToQRCode",
+    value: function textToQRCode(text) {
+      var dark = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '#000000';
       return QRCode.toDataURL(text, {
         color: {
           dark: dark,
@@ -1411,9 +2291,59 @@ var ExtensionBlocks = /*#__PURE__*/function () {
     }
 
     /**
+     * Generate QR code then add or replace it as a costume.
+     * @param {object} args - the block's arguments.
+     * @param {string} args.TEXT - the text to be encoded in the QR code.
+     * @param {string} args.COLOR - the color of the dark part of the QR code.
+     * @param {string} args.NAME - the name of the costume.
+     * @param {object} util - utility object provided by the runtime.
+     * @returns {Promise<string>} - resolves dataURL when the QR code is added
+     */
+  }, {
+    key: "generateQRCode",
+    value: (function () {
+      var _generateQRCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee3(args, util) {
+        var text, dark, target, dataURL, costumeName, runtime, costumeIndex;
+        return _regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              text = Cast$1.toString(args.TEXT);
+              dark = args.COLOR;
+              target = util.target;
+              _context3.next = 5;
+              return this.textToQRCode(text, dark);
+            case 5:
+              dataURL = _context3.sent;
+              costumeName = Cast$1.toString(args.NAME);
+              runtime = this.runtime;
+              if (target.sprite.costumes.length > 1) {
+                costumeIndex = getCostumeIndexByNameOrNumber(target, costumeName);
+                if (costumeIndex !== null) {
+                  target.deleteCostume(costumeIndex);
+                }
+              }
+              return _context3.abrupt("return", addImageAsCostume(target, dataURL, runtime, costumeName, runtime.vm).then(function (costume) {
+                return " ".concat(costume.asset.encodeDataURI(), " ");
+              }).catch(function (error) {
+                log$1.error(error);
+                return error.message;
+              }));
+            case 10:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3, this);
+      }));
+      function generateQRCode(_x, _x2) {
+        return _generateQRCode.apply(this, arguments);
+      }
+      return generateQRCode;
+    }()
+    /**
      * Return snapshot image dataURL.
      * @returns {Promise<string>} - resolves snapshot dataURL
      */
+    )
   }, {
     key: "snapshotData",
     value: function snapshotData() {
@@ -1432,15 +2362,15 @@ var ExtensionBlocks = /*#__PURE__*/function () {
   }, {
     key: "scanQR",
     value: (function () {
-      var _scanQR = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee3() {
+      var _scanQR = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee4() {
         var runtime, canvasWidth, canvasHeight, dataURL, scanResult;
-        return _regeneratorRuntime.wrap(function _callee3$(_context3) {
-          while (1) switch (_context3.prev = _context3.next) {
+        return _regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
             case 0:
               runtime = this.runtime;
               canvasWidth = 960;
               canvasHeight = 720;
-              _context3.next = 5;
+              _context4.next = 5;
               return new Promise(function (resolve) {
                 runtime.renderer.requestSnapshot(function (imageDataURL) {
                   canvasWidth = runtime.renderer.canvas.width;
@@ -1449,20 +2379,20 @@ var ExtensionBlocks = /*#__PURE__*/function () {
                 });
               });
             case 5:
-              dataURL = _context3.sent;
-              _context3.prev = 6;
-              _context3.next = 9;
+              dataURL = _context4.sent;
+              _context4.prev = 6;
+              _context4.next = 9;
               return QrScanner.scanImage(dataURL, {
                 qrEngine: qrEngine,
                 returnDetailedScanResult: true
               });
             case 9:
-              scanResult = _context3.sent;
+              scanResult = _context4.sent;
               if (!(!scanResult || !scanResult.data)) {
-                _context3.next = 12;
+                _context4.next = 12;
                 break;
               }
-              return _context3.abrupt("return", null);
+              return _context4.abrupt("return", null);
             case 12:
               this.scannedData = scanResult.data;
               this.scannedCornerPoints = scanResult.cornerPoints.map(function (point) {
@@ -1474,16 +2404,16 @@ var ExtensionBlocks = /*#__PURE__*/function () {
               if (scanResult) {
                 runtime.startHats('xcxQR_whenQRIsRead');
               }
-              return _context3.abrupt("return", scanResult);
+              return _context4.abrupt("return", scanResult);
             case 18:
-              _context3.prev = 18;
-              _context3.t0 = _context3["catch"](6);
-              return _context3.abrupt("return", null);
+              _context4.prev = 18;
+              _context4.t0 = _context4["catch"](6);
+              return _context4.abrupt("return", null);
             case 21:
             case "end":
-              return _context3.stop();
+              return _context4.stop();
           }
-        }, _callee3, this, [[6, 18]]);
+        }, _callee4, this, [[6, 18]]);
       }));
       function scanQR() {
         return _scanQR.apply(this, arguments);

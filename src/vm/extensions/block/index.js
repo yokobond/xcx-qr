@@ -1,8 +1,10 @@
 import BlockType from '../../extension-support/block-type';
 import ArgumentType from '../../extension-support/argument-type';
 import Cast from '../../util/cast';
+import log from '../../util/log';
 import translations from './translations.json';
 import blockIcon from './block-icon.png';
+import {addImageAsCostume, getCostumeIndexByNameOrNumber} from './costume-util';
 
 let
     QRCode;
@@ -137,30 +139,6 @@ class ExtensionBlocks {
             showStatusButton: false,
             blocks: [
                 {
-                    opcode: 'generateQRCode',
-                    blockType: BlockType.REPORTER,
-                    text: formatMessage({
-                        id: 'xcxQR.generateQRCode',
-                        default: '[TEXT] to QR code with color [COLOR]'
-                    }),
-                    disableMonitor: true,
-                    func: 'generateQRCode',
-                    arguments: {
-                        TEXT: {
-                            type: ArgumentType.STRING,
-                            defaultValue: formatMessage({
-                                id: 'xcxQR.generateQRCode.defaultText',
-                                default: 'QR'
-                            })
-                        },
-                        COLOR: {
-                            type: ArgumentType.COLOR,
-                            defaultValue: '#000000'
-                        }
-                    }
-                },
-                '---',
-                {
                     opcode: 'startQRScan',
                     blockType: BlockType.COMMAND,
                     text: formatMessage({
@@ -225,6 +203,37 @@ class ExtensionBlocks {
                     }),
                     isEdgeActivated: false,
                     shouldRestartExistingThreads: true
+                },
+                '---',
+                {
+                    opcode: 'generateQRCode',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'xcxQR.generateQRCode',
+                        default: '[TEXT] to QR code with color [COLOR] as [NAME]'
+                    }),
+                    disableMonitor: true,
+                    func: 'generateQRCode',
+                    arguments: {
+                        TEXT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'xcxQR.generateQRCode.defaultText',
+                                default: 'QR'
+                            })
+                        },
+                        COLOR: {
+                            type: ArgumentType.COLOR,
+                            defaultValue: '#000000'
+                        },
+                        NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'xcxQR.generateQRCode.defaultName',
+                                default: 'costume'
+                            })
+                        }
+                    }
                 }
             ],
             menus: {
@@ -277,13 +286,47 @@ class ExtensionBlocks {
         return ['x', 'y'];
     }
 
-    generateQRCode (args) {
-        const text = Cast.toString(args.TEXT);
-        const dark = args.COLOR;
+    /**
+     * Generate QR code from text.
+     * @param {string} text - the text to be encoded in the QR code.
+     * @param {string} dark - the color of the dark part of the QR code.
+     * @returns {Promise<string>} - resolves dataURL of the QR code
+     */
+    textToQRCode (text, dark = '#000000') {
         return QRCode.toDataURL(
             text,
             {
                 color: {dark: dark, light: '#FFFFFF00'}
+            });
+    }
+
+    /**
+     * Generate QR code then add or replace it as a costume.
+     * @param {object} args - the block's arguments.
+     * @param {string} args.TEXT - the text to be encoded in the QR code.
+     * @param {string} args.COLOR - the color of the dark part of the QR code.
+     * @param {string} args.NAME - the name of the costume.
+     * @param {object} util - utility object provided by the runtime.
+     * @returns {Promise<string>} - resolves dataURL when the QR code is added
+     */
+    async generateQRCode (args, util) {
+        const text = Cast.toString(args.TEXT);
+        const dark = args.COLOR;
+        const target = util.target;
+        const dataURL = await this.textToQRCode(text, dark);
+        const costumeName = Cast.toString(args.NAME);
+        const runtime = this.runtime;
+        if (target.sprite.costumes.length > 1) {
+            const costumeIndex = getCostumeIndexByNameOrNumber(target, costumeName);
+            if (costumeIndex !== null) {
+                target.deleteCostume(costumeIndex);
+            }
+        }
+        return addImageAsCostume(target, dataURL, runtime, costumeName, runtime.vm)
+            .then(costume => ` ${costume.asset.encodeDataURI()} `)
+            .catch(error => {
+                log.error(error);
+                return error.message;
             });
     }
 
