@@ -1,13 +1,11 @@
-# QR Code
-An example extension for [Xcratch](https://xcratch.github.io/)
+# QR Code Extension Blocks for Xcratch
 
-This extension add extra-block "do it", that executes string in its input field as a sentence in Javascript and return the result.
-
+This extension add extra-block to read QR code from camera and display QR code on screen in Xcratch.
 
 ## ✨ What You Can Do With This Extension
 
 Play [Example Project](https://xcratch.github.io/editor/#https://yokobond.github.io/xcx-qr/projects/example.sb3) to look at what you can do with "QR Code" extension. 
-<iframe src="https://xcratch.github.io/editor/player#https://yokobond.github.io/xcx-qr/projects/example.sb3" width="540px" height="460px"></iframe>
+<iframe src="https://xcratch.github.io/editor/player#https://yokobond.github.io/xcx-qr/projects/example.sb3" width="540px" height="460px" allow="camera *" ></iframe>
 
 
 ## How to Use in Xcratch
@@ -22,47 +20,6 @@ https://yokobond.github.io/xcx-qr/dist/xcxQR.mjs
 ```
 5. Click 'OK' button
 6. Now you can use the blocks of this extension
-
-
-## Development
-
-### Install Dependencies
-
-```sh
-npm install
-```
-
-### Setup Development Environment
-
-Change ```vmSrcOrg``` to your local ```scratch-vm``` directory in ```./scripts/setup-dev.js``` then run setup-dev script to setup development environment.
-
-```sh
-npm run setup-dev
-```
-
-### Bundle into a Module
-
-Run build script to bundle this extension into a module file which could be loaded on Xcratch.
-
-```sh
-npm run build
-```
-
-### Watch and Bundle
-
-Run watch script to watch the changes of source files and bundle automatically.
-
-```sh
-npm run watch
-```
-
-### Test
-
-Run test script to test this extension.
-
-```sh
-npm run test
-```
 
 
 ## 🏠 Home Page
