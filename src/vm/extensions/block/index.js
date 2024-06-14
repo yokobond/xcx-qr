@@ -118,6 +118,10 @@ class ExtensionBlocks {
             // Replace 'formatMessage' to a formatter which is used in the runtime.
             formatMessage = runtime.formatMessage;
         }
+        
+        this.runtime.on('PROJECT_STOP_ALL', () => {
+            this.stopQRScan();
+        });
 
         this.scanTimer = null;
         this.scanInterval = 100;

@@ -2096,6 +2096,7 @@ var ExtensionBlocks = /*#__PURE__*/function () {
    * @param {Runtime} runtime - the Scratch 3.0 runtime.
    */
   function ExtensionBlocks(runtime) {
+    var _this = this;
     _classCallCheck$1(this, ExtensionBlocks);
     /**
      * The Scratch 3.0 runtime.
@@ -2106,6 +2107,9 @@ var ExtensionBlocks = /*#__PURE__*/function () {
       // Replace 'formatMessage' to a formatter which is used in the runtime.
       formatMessage = runtime.formatMessage;
     }
+    this.runtime.on('PROJECT_STOP_ALL', function () {
+      _this.stopQRScan();
+    });
     this.scanTimer = null;
     this.scanInterval = 100;
     this.scannedData = '';
@@ -2347,9 +2351,9 @@ var ExtensionBlocks = /*#__PURE__*/function () {
   }, {
     key: "snapshotData",
     value: function snapshotData() {
-      var _this = this;
+      var _this2 = this;
       return new Promise(function (resolve) {
-        _this.runtime.renderer.requestSnapshot(function (imageDataURL) {
+        _this2.runtime.renderer.requestSnapshot(function (imageDataURL) {
           resolve(imageDataURL);
         });
       });
@@ -2427,16 +2431,16 @@ var ExtensionBlocks = /*#__PURE__*/function () {
   }, {
     key: "startQRScan",
     value: function startQRScan() {
-      var _this2 = this;
+      var _this3 = this;
       if (this.scanTimer) {
         return; // already started
       }
       this.scanTimer = setTimeout(function () {
-        _this2.scanQR().catch(function () {
+        _this3.scanQR().catch(function () {
           // ignore no QR code
         }).finally(function () {
-          _this2.scanTimer = null;
-          _this2.startQRScan();
+          _this3.scanTimer = null;
+          _this3.startQRScan();
         });
       }, this.scanInterval);
     }
