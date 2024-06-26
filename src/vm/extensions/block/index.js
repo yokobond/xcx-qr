@@ -6,24 +6,26 @@ import translations from './translations.json';
 import blockIcon from './block-icon.png';
 import {addImageAsCostume, getCostumeIndexByNameOrNumber} from './costume-util';
 
-let
-    QRCode;
-(async () => {
-    QRCode = (await import(
-        /* webpackIgnore: true */
-        'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm'
-    ));
-})();
+/**
+ * QR Code generator
+ */
+const QRCode = await import(
+    /* webpackIgnore: true */
+    'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm'
+);
 
-let QrScanner;
-let qrEngine;
-(async () => {
-    QrScanner = (await import(
-        /* webpackIgnore: true */
-        'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm'
-    )).default;
-    qrEngine = await QrScanner.createQrEngine(QrScanner.WORKER_PATH);
-})();
+/**
+ * QR Code scanner
+ */
+const QrScanner = (await import(
+    /* webpackIgnore: true */
+    'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm'
+)).default;
+
+/**
+ * QR Code scanner worker
+ */
+const qrEngine = await QrScanner.createQrEngine(QrScanner.WORKER_PATH);
 
 /**
  * Formatter which is used for translation.

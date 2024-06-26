@@ -64,6 +64,32 @@ var entry = {
   translationMap: translations$1
 };
 
+function asyncGeneratorStep(n, t, e, r, o, a, c) {
+  try {
+    var i = n[a](c),
+      u = i.value;
+  } catch (n) {
+    return void e(n);
+  }
+  i.done ? t(u) : Promise.resolve(u).then(r, o);
+}
+function _asyncToGenerator(n) {
+  return function () {
+    var t = this,
+      e = arguments;
+    return new Promise(function (r, o) {
+      var a = n.apply(t, e);
+      function _next(n) {
+        asyncGeneratorStep(a, r, o, _next, _throw, "next", n);
+      }
+      function _throw(n) {
+        asyncGeneratorStep(a, r, o, _next, _throw, "throw", n);
+      }
+      _next(void 0);
+    });
+  };
+}
+
 function _classCallCheck$1(a, n) {
   if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function");
 }
@@ -104,32 +130,6 @@ function _createClass$1(e, r, t) {
   return r && _defineProperties$1(e.prototype, r), t && _defineProperties$1(e, t), Object.defineProperty(e, "prototype", {
     writable: !1
   }), e;
-}
-
-function asyncGeneratorStep(n, t, e, r, o, a, c) {
-  try {
-    var i = n[a](c),
-      u = i.value;
-  } catch (n) {
-    return void e(n);
-  }
-  i.done ? t(u) : Promise.resolve(u).then(r, o);
-}
-function _asyncToGenerator(n) {
-  return function () {
-    var t = this,
-      e = arguments;
-    return new Promise(function (r, o) {
-      var a = n.apply(t, e);
-      function _next(n) {
-        asyncGeneratorStep(a, r, o, _next, _throw, "next", n);
-      }
-      function _throw(n) {
-        asyncGeneratorStep(a, r, o, _next, _throw, "throw", n);
-      }
-      _next(void 0);
-    });
-  };
 }
 
 function getDefaultExportFromCjs (x) {
@@ -1649,7 +1649,7 @@ var en = {
 };
 var ja = {
 	"xcxQR.name": "QRコード",
-	"xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードを[NAME]にする",
+	"xcxQR.generateQRCode": "[TEXT]を[COLOR]色のQRコードの[NAME]にする",
 	"xcxQR.generateQRCode.defaultText": "データ",
 	"xcxQR.generateQRCode.defaultName": "コスチューム",
 	"xcxQR.startQRScan": "QRコードの読み取りを始める",
@@ -1667,7 +1667,7 @@ var translations = {
 	ja: ja,
 	"ja-Hira": {
 	"xcxQR.name": "QRコード",
-	"xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードを[NAME]にする",
+	"xcxQR.generateQRCode": "[TEXT]を[COLOR]いろのQRコードの[NAME]にする",
 	"xcxQR.generateQRCode.defaultText": "データ",
 	"xcxQR.generateQRCode.defaultName": "コスチューム",
 	"xcxQR.startQRScan": "QRコードのよみとりをはじめる",
@@ -2021,43 +2021,22 @@ var addImageAsCostume = /*#__PURE__*/function () {
   };
 }();
 
-var QRCode;
-_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
-  return _regeneratorRuntime.wrap(function _callee$(_context) {
-    while (1) switch (_context.prev = _context.next) {
-      case 0:
-        _context.next = 2;
-        return import( /* webpackIgnore: true */
-        'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm');
-      case 2:
-        QRCode = _context.sent;
-      case 3:
-      case "end":
-        return _context.stop();
-    }
-  }, _callee);
-}))();
-var QrScanner;
-var qrEngine;
-_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2() {
-  return _regeneratorRuntime.wrap(function _callee2$(_context2) {
-    while (1) switch (_context2.prev = _context2.next) {
-      case 0:
-        _context2.next = 2;
-        return import( /* webpackIgnore: true */
-        'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm');
-      case 2:
-        QrScanner = _context2.sent.default;
-        _context2.next = 5;
-        return QrScanner.createQrEngine(QrScanner.WORKER_PATH);
-      case 5:
-        qrEngine = _context2.sent;
-      case 6:
-      case "end":
-        return _context2.stop();
-    }
-  }, _callee2);
-}))();
+/**
+ * QR Code generator
+ */
+var QRCode = await import( /* webpackIgnore: true */
+'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm');
+
+/**
+ * QR Code scanner
+ */
+var QrScanner = (await import( /* webpackIgnore: true */
+'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm')).default;
+
+/**
+ * QR Code scanner worker
+ */
+var qrEngine = await QrScanner.createQrEngine(QrScanner.WORKER_PATH);
 
 /**
  * Formatter which is used for translation.
@@ -2306,18 +2285,18 @@ var ExtensionBlocks = /*#__PURE__*/function () {
   }, {
     key: "generateQRCode",
     value: (function () {
-      var _generateQRCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee3(args, util) {
+      var _generateQRCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(args, util) {
         var text, dark, target, dataURL, costumeName, runtime, costumeIndex;
-        return _regeneratorRuntime.wrap(function _callee3$(_context3) {
-          while (1) switch (_context3.prev = _context3.next) {
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
             case 0:
               text = Cast$1.toString(args.TEXT);
               dark = args.COLOR;
               target = util.target;
-              _context3.next = 5;
+              _context.next = 5;
               return this.textToQRCode(text, dark);
             case 5:
-              dataURL = _context3.sent;
+              dataURL = _context.sent;
               costumeName = Cast$1.toString(args.NAME);
               runtime = this.runtime;
               if (target.sprite.costumes.length > 1) {
@@ -2326,7 +2305,7 @@ var ExtensionBlocks = /*#__PURE__*/function () {
                   target.deleteCostume(costumeIndex);
                 }
               }
-              return _context3.abrupt("return", addImageAsCostume(target, dataURL, runtime, costumeName, runtime.vm).then(function (costume) {
+              return _context.abrupt("return", addImageAsCostume(target, dataURL, runtime, costumeName, runtime.vm).then(function (costume) {
                 return " ".concat(costume.asset.encodeDataURI(), " ");
               }).catch(function (error) {
                 log$1.error(error);
@@ -2334,9 +2313,9 @@ var ExtensionBlocks = /*#__PURE__*/function () {
               }));
             case 10:
             case "end":
-              return _context3.stop();
+              return _context.stop();
           }
-        }, _callee3, this);
+        }, _callee, this);
       }));
       function generateQRCode(_x, _x2) {
         return _generateQRCode.apply(this, arguments);
@@ -2366,15 +2345,15 @@ var ExtensionBlocks = /*#__PURE__*/function () {
   }, {
     key: "scanQR",
     value: (function () {
-      var _scanQR = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee4() {
+      var _scanQR = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2() {
         var runtime, canvasWidth, canvasHeight, dataURL, scanResult;
-        return _regeneratorRuntime.wrap(function _callee4$(_context4) {
-          while (1) switch (_context4.prev = _context4.next) {
+        return _regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
             case 0:
               runtime = this.runtime;
               canvasWidth = 960;
               canvasHeight = 720;
-              _context4.next = 5;
+              _context2.next = 5;
               return new Promise(function (resolve) {
                 runtime.renderer.requestSnapshot(function (imageDataURL) {
                   canvasWidth = runtime.renderer.canvas.width;
@@ -2383,20 +2362,20 @@ var ExtensionBlocks = /*#__PURE__*/function () {
                 });
               });
             case 5:
-              dataURL = _context4.sent;
-              _context4.prev = 6;
-              _context4.next = 9;
+              dataURL = _context2.sent;
+              _context2.prev = 6;
+              _context2.next = 9;
               return QrScanner.scanImage(dataURL, {
                 qrEngine: qrEngine,
                 returnDetailedScanResult: true
               });
             case 9:
-              scanResult = _context4.sent;
+              scanResult = _context2.sent;
               if (!(!scanResult || !scanResult.data)) {
-                _context4.next = 12;
+                _context2.next = 12;
                 break;
               }
-              return _context4.abrupt("return", null);
+              return _context2.abrupt("return", null);
             case 12:
               this.scannedData = scanResult.data;
               this.scannedCornerPoints = scanResult.cornerPoints.map(function (point) {
@@ -2408,16 +2387,16 @@ var ExtensionBlocks = /*#__PURE__*/function () {
               if (scanResult) {
                 runtime.startHats('xcxQR_whenQRIsRead');
               }
-              return _context4.abrupt("return", scanResult);
+              return _context2.abrupt("return", scanResult);
             case 18:
-              _context4.prev = 18;
-              _context4.t0 = _context4["catch"](6);
-              return _context4.abrupt("return", null);
+              _context2.prev = 18;
+              _context2.t0 = _context2["catch"](6);
+              return _context2.abrupt("return", null);
             case 21:
             case "end":
-              return _context4.stop();
+              return _context2.stop();
           }
-        }, _callee4, this, [[6, 18]]);
+        }, _callee2, this, [[6, 18]]);
       }));
       function scanQR() {
         return _scanQR.apply(this, arguments);
