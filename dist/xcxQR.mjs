@@ -64,32 +64,6 @@ var entry = {
   translationMap: translations$1
 };
 
-function asyncGeneratorStep(n, t, e, r, o, a, c) {
-  try {
-    var i = n[a](c),
-      u = i.value;
-  } catch (n) {
-    return void e(n);
-  }
-  i.done ? t(u) : Promise.resolve(u).then(r, o);
-}
-function _asyncToGenerator(n) {
-  return function () {
-    var t = this,
-      e = arguments;
-    return new Promise(function (r, o) {
-      var a = n.apply(t, e);
-      function _next(n) {
-        asyncGeneratorStep(a, r, o, _next, _throw, "next", n);
-      }
-      function _throw(n) {
-        asyncGeneratorStep(a, r, o, _next, _throw, "throw", n);
-      }
-      _next(void 0);
-    });
-  };
-}
-
 function _classCallCheck$1(a, n) {
   if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function");
 }
@@ -130,6 +104,32 @@ function _createClass$1(e, r, t) {
   return r && _defineProperties$1(e.prototype, r), t && _defineProperties$1(e, t), Object.defineProperty(e, "prototype", {
     writable: !1
   }), e;
+}
+
+function asyncGeneratorStep(n, t, e, r, o, a, c) {
+  try {
+    var i = n[a](c),
+      u = i.value;
+  } catch (n) {
+    return void e(n);
+  }
+  i.done ? t(u) : Promise.resolve(u).then(r, o);
+}
+function _asyncToGenerator(n) {
+  return function () {
+    var t = this,
+      e = arguments;
+    return new Promise(function (r, o) {
+      var a = n.apply(t, e);
+      function _next(n) {
+        asyncGeneratorStep(a, r, o, _next, _throw, "next", n);
+      }
+      function _throw(n) {
+        asyncGeneratorStep(a, r, o, _next, _throw, "throw", n);
+      }
+      _next(void 0);
+    });
+  };
 }
 
 function getDefaultExportFromCjs (x) {
@@ -2024,19 +2024,51 @@ var addImageAsCostume = /*#__PURE__*/function () {
 /**
  * QR Code generator
  */
-var QRCode = await import( /* webpackIgnore: true */
-'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm');
+var QRCode;
+_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+  return _regeneratorRuntime.wrap(function _callee$(_context) {
+    while (1) switch (_context.prev = _context.next) {
+      case 0:
+        _context.next = 2;
+        return import( /* webpackIgnore: true */
+        'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm');
+      case 2:
+        QRCode = _context.sent;
+      case 3:
+      case "end":
+        return _context.stop();
+    }
+  }, _callee);
+}))();
 
 /**
  * QR Code scanner
  */
-var QrScanner = (await import( /* webpackIgnore: true */
-'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm')).default;
+var QrScanner;
 
 /**
  * QR Code scanner worker
  */
-var qrEngine = await QrScanner.createQrEngine(QrScanner.WORKER_PATH);
+var qrEngine;
+_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2() {
+  return _regeneratorRuntime.wrap(function _callee2$(_context2) {
+    while (1) switch (_context2.prev = _context2.next) {
+      case 0:
+        _context2.next = 2;
+        return import( /* webpackIgnore: true */
+        'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm');
+      case 2:
+        QrScanner = _context2.sent.default;
+        _context2.next = 5;
+        return QrScanner.createQrEngine(QrScanner.WORKER_PATH);
+      case 5:
+        qrEngine = _context2.sent;
+      case 6:
+      case "end":
+        return _context2.stop();
+    }
+  }, _callee2);
+}))();
 
 /**
  * Formatter which is used for translation.
@@ -2285,18 +2317,18 @@ var ExtensionBlocks = /*#__PURE__*/function () {
   }, {
     key: "generateQRCode",
     value: (function () {
-      var _generateQRCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(args, util) {
+      var _generateQRCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee3(args, util) {
         var text, dark, target, dataURL, costumeName, runtime, costumeIndex;
-        return _regeneratorRuntime.wrap(function _callee$(_context) {
-          while (1) switch (_context.prev = _context.next) {
+        return _regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
             case 0:
               text = Cast$1.toString(args.TEXT);
               dark = args.COLOR;
               target = util.target;
-              _context.next = 5;
+              _context3.next = 5;
               return this.textToQRCode(text, dark);
             case 5:
-              dataURL = _context.sent;
+              dataURL = _context3.sent;
               costumeName = Cast$1.toString(args.NAME);
               runtime = this.runtime;
               if (target.sprite.costumes.length > 1) {
@@ -2305,7 +2337,7 @@ var ExtensionBlocks = /*#__PURE__*/function () {
                   target.deleteCostume(costumeIndex);
                 }
               }
-              return _context.abrupt("return", addImageAsCostume(target, dataURL, runtime, costumeName, runtime.vm).then(function (costume) {
+              return _context3.abrupt("return", addImageAsCostume(target, dataURL, runtime, costumeName, runtime.vm).then(function (costume) {
                 return " ".concat(costume.asset.encodeDataURI(), " ");
               }).catch(function (error) {
                 log$1.error(error);
@@ -2313,9 +2345,9 @@ var ExtensionBlocks = /*#__PURE__*/function () {
               }));
             case 10:
             case "end":
-              return _context.stop();
+              return _context3.stop();
           }
-        }, _callee, this);
+        }, _callee3, this);
       }));
       function generateQRCode(_x, _x2) {
         return _generateQRCode.apply(this, arguments);
@@ -2345,15 +2377,15 @@ var ExtensionBlocks = /*#__PURE__*/function () {
   }, {
     key: "scanQR",
     value: (function () {
-      var _scanQR = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2() {
+      var _scanQR = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee4() {
         var runtime, canvasWidth, canvasHeight, dataURL, scanResult;
-        return _regeneratorRuntime.wrap(function _callee2$(_context2) {
-          while (1) switch (_context2.prev = _context2.next) {
+        return _regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
             case 0:
               runtime = this.runtime;
               canvasWidth = 960;
               canvasHeight = 720;
-              _context2.next = 5;
+              _context4.next = 5;
               return new Promise(function (resolve) {
                 runtime.renderer.requestSnapshot(function (imageDataURL) {
                   canvasWidth = runtime.renderer.canvas.width;
@@ -2362,20 +2394,20 @@ var ExtensionBlocks = /*#__PURE__*/function () {
                 });
               });
             case 5:
-              dataURL = _context2.sent;
-              _context2.prev = 6;
-              _context2.next = 9;
+              dataURL = _context4.sent;
+              _context4.prev = 6;
+              _context4.next = 9;
               return QrScanner.scanImage(dataURL, {
                 qrEngine: qrEngine,
                 returnDetailedScanResult: true
               });
             case 9:
-              scanResult = _context2.sent;
+              scanResult = _context4.sent;
               if (!(!scanResult || !scanResult.data)) {
-                _context2.next = 12;
+                _context4.next = 12;
                 break;
               }
-              return _context2.abrupt("return", null);
+              return _context4.abrupt("return", null);
             case 12:
               this.scannedData = scanResult.data;
               this.scannedCornerPoints = scanResult.cornerPoints.map(function (point) {
@@ -2387,16 +2419,16 @@ var ExtensionBlocks = /*#__PURE__*/function () {
               if (scanResult) {
                 runtime.startHats('xcxQR_whenQRIsRead');
               }
-              return _context2.abrupt("return", scanResult);
+              return _context4.abrupt("return", scanResult);
             case 18:
-              _context2.prev = 18;
-              _context2.t0 = _context2["catch"](6);
-              return _context2.abrupt("return", null);
+              _context4.prev = 18;
+              _context4.t0 = _context4["catch"](6);
+              return _context4.abrupt("return", null);
             case 21:
             case "end":
-              return _context2.stop();
+              return _context4.stop();
           }
-        }, _callee2, this, [[6, 18]]);
+        }, _callee4, this, [[6, 18]]);
       }));
       function scanQR() {
         return _scanQR.apply(this, arguments);
