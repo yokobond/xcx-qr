@@ -1,6 +1,8 @@
 {
   "name": "xcx-qr",
   "version": "0.0.0",
+  "description": "A QR code generator and scanner for Xcratch.",
+  "extensionId": "xcxQR",
   "scripts": {
     "setup-dev": "node ./scripts/setup-dev.mjs",
     "build": "rollup -c ./scripts/rollup.config.mjs",
