@@ -7,7 +7,12 @@
     "setup-dev": "node ./scripts/setup-dev.mjs",
     "build": "rollup -c ./scripts/rollup.config.mjs",
     "watch": "rollup -c ./scripts/rollup.config.mjs --watch",
+    "version": "node ./scripts/version-build.mjs && git add dist",
     "test": "mocha"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.3",
+    "qr-scanner": "^1.4.2"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

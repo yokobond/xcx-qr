@@ -5,34 +5,16 @@ import log from '../../util/log';
 import translations from './translations.json';
 import blockIcon from './block-icon.png';
 import {addImageAsCostume, getCostumeIndexByNameOrNumber} from './costume-util';
-
-/**
- * QR Code generator
- */
-let QRCode;
-
-(async () => {
-    QRCode = await import(
-        /* webpackIgnore: true */
-        'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm'
-    );
-})();
-
-/**
- * QR Code scanner
- */
-let QrScanner;
+import QRCode from 'qrcode';
+import QrScanner from 'qr-scanner';
 
 /**
  * QR Code scanner worker
  */
 let qrEngine;
 
+// Initialize QR scanner engine
 (async () => {
-    QrScanner = (await import(
-        /* webpackIgnore: true */
-        'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/+esm'
-    )).default;
     qrEngine = await QrScanner.createQrEngine(QrScanner.WORKER_PATH);
 })();
 
