@@ -34,6 +34,7 @@ const entry = {
             id: 'xcxQR.entry.description'
         });
     },
+    tags: ['image', 'qr', 'code', 'barcode'],
     featured: true,
     disabled: false,
     bluetoothRequired: false,
